@@ -53,9 +53,18 @@ def load_data():
 data = load_data()
 
 # ==========================
-# Menu Lateral
+# Sidebar: Navegação e Filtro
 # ==========================
 page = st.sidebar.radio("Navegação", ["Dashboard de Vendas", "Vendas por Localidade"])
+
+st.sidebar.markdown("### Filtro por Produto")
+produtos_disponiveis = sorted(data["produto"].unique())
+produtos_selecionados = st.sidebar.multiselect("Selecione os produtos:",
+                                               options=produtos_disponiveis,
+                                               default=produtos_disponiveis)
+
+# Aplica o filtro
+data_filtrado = data[data["produto"].isin(produtos_selecionados)]
 
 # ==========================
 # Página 1 - Dashboard
@@ -64,12 +73,12 @@ if page == "Dashboard de Vendas":
     st.markdown('<div class="main-title">Dashboard de Vendas - Cerveja Zorzi</div>', unsafe_allow_html=True)
     st.markdown("---")
 
-    total_faturamento = data["faturamento"].sum()
-    total_custo = data["custo"].sum()
+    total_faturamento = data_filtrado["faturamento"].sum()
+    total_custo = data_filtrado["custo"].sum()
     margem_lucro = ((total_faturamento - total_custo) / total_faturamento) * 100 if total_faturamento != 0 else 0
-    avg_nps = data["avaliacao"].mean()
-    ticket_medio = total_faturamento / data.shape[0] if data.shape[0] > 0 else 0
-    total_unidades = data["unidades"].sum()
+    avg_nps = data_filtrado["avaliacao"].mean()
+    ticket_medio = total_faturamento / data_filtrado.shape[0] if data_filtrado.shape[0] > 0 else 0
+    total_unidades = data_filtrado["unidades"].sum()
 
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -89,7 +98,7 @@ if page == "Dashboard de Vendas":
     st.markdown("---")
 
     # Gráfico de Faturamento por Data
-    df_time = data.groupby("data")["faturamento"].sum().reset_index()
+    df_time = data_filtrado.groupby("data")["faturamento"].sum().reset_index()
     fig_time = px.line(df_time, x="data", y="faturamento", 
                        title="Faturamento ao Longo do Tempo",
                        labels={"faturamento": "Faturamento (R$)"})
@@ -99,7 +108,7 @@ if page == "Dashboard de Vendas":
 
     # Pódio de Produtos
     st.subheader("🥇 Pódio: Produtos Mais Vendidos")
-    df_podio = data.groupby("produto").agg({"unidades": "sum", "faturamento": "sum"}).reset_index()
+    df_podio = data_filtrado.groupby("produto").agg({"unidades": "sum", "faturamento": "sum"}).reset_index()
     df_podio = df_podio.sort_values(by="unidades", ascending=False)
     fig_podio = px.bar(df_podio, x="produto", y="unidades",
                        hover_data=["faturamento"],
@@ -111,7 +120,7 @@ if page == "Dashboard de Vendas":
 
     # Método de Pagamento
     st.subheader("💳 Faturamento por Método de Pagamento")
-    df_pag = data.groupby("metodo_pagamento").agg({"faturamento": "sum", "unidades": "sum"}).reset_index()
+    df_pag = data_filtrado.groupby("metodo_pagamento").agg({"faturamento": "sum", "unidades": "sum"}).reset_index()
     fig_pag = px.pie(df_pag, values="faturamento", names="metodo_pagamento",
                      title="Participação no Faturamento")
     st.plotly_chart(fig_pag, use_container_width=True)
@@ -161,10 +170,3 @@ elif page == "Vendas por Localidade":
     ))
 
     st.markdown("Cada ponto no mapa representa um local de venda. O tamanho da bolha reflete o faturamento total da região.")
-
-# ==========================
-# Página 3 - Placeholder
-# ==========================
-else:
-    st.title("📄 Outra Página")
-    st.write("Conteúdo adicional pode ser inserido aqui.")
